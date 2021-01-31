@@ -41,7 +41,6 @@ public class BowlingScoreListenerImpl extends BowlingScoreBaseListener {
 			this.frameResults.add(new FrameResult(FrameResultNature.STRIKE, 10)); 
 		}
 		else if (ctx.spareFrameResult() != null) {
-			// int scoreForThisFrame = Integer.parseInt(ctx.spareFrameResult().getText().substring(0, 1));
 			this.frameResults.add(new FrameResult(FrameResultNature.SPARE, 10));
 		}
 		else if (ctx.missFrameResult() != null) {
@@ -56,7 +55,7 @@ public class BowlingScoreListenerImpl extends BowlingScoreBaseListener {
 		int scoreForThisFrame = 10;
 		int bonusScoreOne = this.decideScoreFromBonusThrow(ctx.getText().substring(1, 2));
 		int bonusScoreTwo = this.decideScoreFromBonusThrow(ctx.getText().substring(2));
-		this.frameResults.add(new FrameResult(FrameResultNature.SPARE, scoreForThisFrame, bonusScoreOne, bonusScoreTwo));
+		this.frameResults.add(new FrameResult(FrameResultNature.STRIKE, scoreForThisFrame, bonusScoreOne, bonusScoreTwo));
 		this.tryLookBackOnStrikeAndSpareResult();
 	}
 	
@@ -92,16 +91,43 @@ public class BowlingScoreListenerImpl extends BowlingScoreBaseListener {
 		FrameResult curResult = this.frameResults.get(currentFrameIndex);
 		FrameResult prevResult = this.frameResults.get(prevIndex);
 		
+		// If this is already last frame and previous frame (i.e. 9th frame) was strike, it must
+		// be settled now, as there is no more frame ahead:
 		if (currentFrameIndex >= 9 && FrameResultNature.STRIKE.equals(prevResult.getNature())) {
-			FrameResult updateLookBackResult = new FrameResult(prevResult.getNature(), prevResult.getScore() + curResult.getScore() + curResult.getBonusScoreOne());
+			
+			int newFrameScore = 0;
+			
+			// The score to back propagate also depends on nature of current frame. If current
+			// is a strike, 10 + two bonus throws should be added:
+			if (FrameResultNature.STRIKE.equals(curResult.getNature())) {
+				
+				// 10: Original score of 9th frame, strike => 10
+				// 10: Score of 10th frame, strike => 10
+				// Plus first bonus score of 10th frame
+				newFrameScore = 10 + 10 + curResult.getBonusScoreOne();
+			}
+			
+			// If this is a spare only, no bonus should be added:
+			else if (FrameResultNature.SPARE.equals(curResult.getNature())) {
+				
+				// 10: Original score of 9th frame, strike => 10
+				// 10: Score of 10th frame, spare => 10
+				newFrameScore = 10 + 10;
+			}
+			
+			FrameResult updateLookBackResult = new FrameResult(prevResult.getNature(), newFrameScore);
 			this.frameResults.set(prevIndex, updateLookBackResult);
 		}
+		
+		// Otherwise, propagate score obtained in this frame to previous strike/spare frame
 		else if (FrameResultNature.STRIKE.equals(prevResult.getNature()) || FrameResultNature.SPARE.equals(prevResult.getNature())) {
-			FrameResult updateLookBackResult = new FrameResult(prevResult.getNature(), prevResult.getScore() + curResult.getScore());
+			FrameResult updateLookBackResult = new FrameResult(
+					prevResult.getNature(),
+					prevResult.getScore() + curResult.getScore());
 			this.frameResults.set(prevIndex, updateLookBackResult);
 		}
 		
-		
+		// Same for two frame before, but for strike only
 		int prevPrevIndex = currentFrameIndex - 2;
 		if (prevPrevIndex < 0) return;
 		
