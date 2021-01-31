@@ -68,3 +68,4 @@ T_STRIKE : 'X';
 T_DIGIT : [0-9];
 T_SPARE : '/';
 T_MISS : '-';
+T_SPACE : [ \t\r\n]+ -> skip;
